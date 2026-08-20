@@ -1,0 +1,30 @@
+name: Discover Tableau Views
+
+# Manual-only: run this once (Actions tab -> Discover Tableau Views -> Run
+# workflow) to list every sheet in the workbook and find the exact view ID
+# for the Hierarchy Grid crosstab. Check the run's log output for the table.
+on:
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: List views
+        working-directory: scripts
+        env:
+          TABLEAU_SERVER: ${{ secrets.TABLEAU_SERVER }}
+          TABLEAU_SITE: ${{ secrets.TABLEAU_SITE }}
+          TABLEAU_PAT_NAME: ${{ secrets.TABLEAU_PAT_NAME }}
+          TABLEAU_PAT_SECRET: ${{ secrets.TABLEAU_PAT_SECRET }}
+          TABLEAU_WORKBOOK_NAME: ${{ vars.TABLEAU_WORKBOOK_NAME }}
+        run: python discover_views.py
