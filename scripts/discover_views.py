@@ -37,10 +37,27 @@ def main():
         print(f"{v.get('name',''):40} {v.get('contentUrl',''):45} {v.get('id','')}")
 
     print(
-        "\nNext step: find the row above whose NAME matches your "
-        "'Hierarchy Grid - All Levels' crosstab (it should be an individual "
-        "worksheet, not the dashboard container). Copy its VIEW ID and set it "
-        "as the TABLEAU_VIEW_ID secret for the daily workflow."
+        "\nPeeking at each sheet's underlying data (first line = column "
+        "headers, so we can see which one actually has the full Office "
+        "CAR / Tech Name / Jobs / Net Revenue detail, vs. a collapsed "
+        "hierarchy that only shows one column):\n"
+    )
+    for v in views:
+        name = v.get("name", "")
+        vid = v.get("id", "")
+        try:
+            csv_bytes = client.view_data_csv(vid)
+            first_line = csv_bytes.decode("utf-8-sig", errors="replace").splitlines()[0] if csv_bytes else "(empty)"
+            print(f"[{name}] ({len(csv_bytes)} bytes)")
+            print(f"    columns: {first_line}\n")
+        except Exception as e:
+            print(f"[{name}] ERROR pulling data: {e}\n")
+
+    print(
+        "Next step: find the sheet above whose column list actually includes "
+        "Office CAR, Tech Name, Jobs, and Net Revenue (not just one column). "
+        "Copy its VIEW ID from the table and set it as the TABLEAU_VIEW_ID "
+        "secret for the daily workflow."
     )
 
 
