@@ -56,31 +56,40 @@ def main():
             print(f"[{name}] ERROR pulling data: {e}\n")
 
     target = next((v for v in views if v.get("name") == TARGET_VIEW_NAME), None)
-    if target:
-        print(f"\nNow probing '{TARGET_VIEW_NAME}' with the daily filter set applied "
-              f"(same scope as the browser, but Relative Date Range -> Month To Date):")
-        print(f"  filters: {HIERARCHY_GRID_FILTERS}\n")
-        try:
-            csv_bytes = client.view_data_csv(target["id"], filters=HIERARCHY_GRID_FILTERS)
-            text = csv_bytes.decode("utf-8-sig", errors="replace")
-            lines = text.splitlines()
-            print(f"Got {len(csv_bytes)} bytes, {len(lines)} line(s).\n")
-            print("First 25 lines:")
-            for line in lines[:25]:
-                print(f"    {line}")
-            if len(lines) > 25:
-                print(f"    ... ({len(lines) - 25} more lines)")
-        except Exception as e:
-            print(f"ERROR probing '{TARGET_VIEW_NAME}' with filters: {e}", file=sys.stderr)
-    else:
+    if not target:
         print(f"\nCould not find a view named '{TARGET_VIEW_NAME}' to probe.", file=sys.stderr)
+        return
+
+    print(f"\n=== Baseline: '{TARGET_VIEW_NAME}' with NO filters ===")
+    try:
+        csv_bytes = client.view_data_csv(target["id"])
+        print(f"{len(csv_bytes)} bytes: {csv_bytes.decode('utf-8-sig', errors='replace').splitlines()[:3]}")
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+
+    print(f"\n=== All {len(HIERARCHY_GRID_FILTERS)} filters together ===")
+    try:
+        csv_bytes = client.view_data_csv(target["id"], filters=HIERARCHY_GRID_FILTERS)
+        print(f"{len(csv_bytes)} bytes: {csv_bytes.decode('utf-8-sig', errors='replace').splitlines()[:3]}")
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+
+    print(f"\n=== Testing each filter ONE AT A TIME (to isolate which value is wrong) ===")
+    for field, value in HIERARCHY_GRID_FILTERS.items():
+        try:
+            csv_bytes = client.view_data_csv(target["id"], filters={field: value})
+            lines = csv_bytes.decode("utf-8-sig", errors="replace").splitlines()
+            preview = lines[:3] if lines else "(empty)"
+            print(f"[{field} = {value!r}] -> {len(csv_bytes)} bytes, {len(lines)} line(s): {preview}")
+        except Exception as e:
+            print(f"[{field} = {value!r}] -> ERROR: {e}")
 
     print(
-        "\nNext step: check the probed output above. If it now shows real "
-        "rows (Office CAR, Tech Name, Jobs, Net Revenue with actual values "
-        "spanning the month, not just one column), we're set — the "
-        "TABLEAU_VIEW_ID for the daily workflow should be this view's ID "
-        "from the table above, and the filters are baked into filters.py."
+        "\nNext step: look at the 'one at a time' results above. Any filter "
+        "that drops to a tiny byte count / 0-1 lines by itself has the wrong "
+        "value or field name (Tableau silently returns nothing instead of "
+        "erroring on a mismatch) — report those back so we can fix filters.py. "
+        "Filters that keep a healthy byte count alone are fine as-is."
     )
 
 
