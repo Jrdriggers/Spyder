@@ -1,0 +1,44 @@
+name: Daily Sales Leaderboard
+
+on:
+  schedule:
+    # 11:00 UTC = 7:00 AM Eastern during Daylight Time (roughly Mar-Nov).
+    # During Standard Time (Nov-Mar) this becomes 6:00 AM Eastern, since
+    # GitHub Actions cron is fixed UTC and does not shift for DST.
+    # Adjust the hour below in Nov/Mar if you want a fixed local time
+    # year-round (see README for the two lines to swap).
+    - cron: "0 11 * * *"
+  workflow_dispatch: {}  # lets you trigger a run manually to test
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build and post leaderboard
+        working-directory: scripts
+        env:
+          TABLEAU_SERVER: ${{ secrets.TABLEAU_SERVER }}
+          TABLEAU_SITE: ${{ secrets.TABLEAU_SITE }}
+          TABLEAU_PAT_NAME: ${{ secrets.TABLEAU_PAT_NAME }}
+          TABLEAU_PAT_SECRET: ${{ secrets.TABLEAU_PAT_SECRET }}
+          TABLEAU_VIEW_ID: ${{ secrets.TABLEAU_VIEW_ID }}
+          GROUPME_ACCESS_TOKEN: ${{ secrets.GROUPME_ACCESS_TOKEN }}
+          GROUPME_BOT_ID: ${{ secrets.GROUPME_BOT_ID }}
+        run: python run_daily.py
+
+      - name: Upload PNG as run artifact (for debugging)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sales-leaderboard-png
+          path: /tmp/sales-leaderboard.png
+          if-no-files-found: ignore
