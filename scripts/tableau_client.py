@@ -124,6 +124,16 @@ class TableauClient:
         data = self.get_json(f"sites/{self.site_id}/workbooks/{workbook_id}/views")
         return data.get("views", {}).get("view", [])
 
-    def view_data_csv(self, view_id):
-        """Query View Data - returns the underlying crosstab data as CSV bytes."""
-        return self.get_raw(f"sites/{self.site_id}/views/{view_id}/data")
+    def view_data_csv(self, view_id, filters=None):
+        """Query View Data - returns the underlying crosstab data as CSV bytes.
+
+        filters: optional dict of {field_name: value} applied as Tableau
+        "vf_" view filter query params, e.g. {"Relative Date Range": "Month To Date"}.
+        Mirrors whatever quick filters are set in the browser when viewing
+        the dashboard manually.
+        """
+        params = {}
+        if filters:
+            for field, value in filters.items():
+                params[f"vf_{field}"] = value
+        return self.get_raw(f"sites/{self.site_id}/views/{view_id}/data", params=params)
