@@ -14,8 +14,10 @@ import os
 import sys
 
 from tableau_client import TableauClient
+from filters import HIERARCHY_GRID_FILTERS
 
 WORKBOOK_NAME = os.environ.get("TABLEAU_WORKBOOK_NAME", "RevenueDashboard")
+TARGET_VIEW_NAME = "Revenue Hierarchy"
 
 
 def main():
@@ -53,11 +55,32 @@ def main():
         except Exception as e:
             print(f"[{name}] ERROR pulling data: {e}\n")
 
+    target = next((v for v in views if v.get("name") == TARGET_VIEW_NAME), None)
+    if target:
+        print(f"\nNow probing '{TARGET_VIEW_NAME}' with the daily filter set applied "
+              f"(same scope as the browser, but Relative Date Range -> Month To Date):")
+        print(f"  filters: {HIERARCHY_GRID_FILTERS}\n")
+        try:
+            csv_bytes = client.view_data_csv(target["id"], filters=HIERARCHY_GRID_FILTERS)
+            text = csv_bytes.decode("utf-8-sig", errors="replace")
+            lines = text.splitlines()
+            print(f"Got {len(csv_bytes)} bytes, {len(lines)} line(s).\n")
+            print("First 25 lines:")
+            for line in lines[:25]:
+                print(f"    {line}")
+            if len(lines) > 25:
+                print(f"    ... ({len(lines) - 25} more lines)")
+        except Exception as e:
+            print(f"ERROR probing '{TARGET_VIEW_NAME}' with filters: {e}", file=sys.stderr)
+    else:
+        print(f"\nCould not find a view named '{TARGET_VIEW_NAME}' to probe.", file=sys.stderr)
+
     print(
-        "Next step: find the sheet above whose column list actually includes "
-        "Office CAR, Tech Name, Jobs, and Net Revenue (not just one column). "
-        "Copy its VIEW ID from the table and set it as the TABLEAU_VIEW_ID "
-        "secret for the daily workflow."
+        "\nNext step: check the probed output above. If it now shows real "
+        "rows (Office CAR, Tech Name, Jobs, Net Revenue with actual values "
+        "spanning the month, not just one column), we're set — the "
+        "TABLEAU_VIEW_ID for the daily workflow should be this view's ID "
+        "from the table above, and the filters are baked into filters.py."
     )
 
 
